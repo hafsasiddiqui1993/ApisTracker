@@ -1,122 +1,177 @@
+import React from 'react'
+import Button from 'react-bootstrap/Button';
+import Col from 'react-bootstrap/Col';
+import Form from 'react-bootstrap/Form';
+import Table from 'react-bootstrap/Table';
 
-const express = require('express');
-const bodyParser = require("body-parser");
+import Modal from 'react-bootstrap/Modal';
+import { useState } from 'react';
+import ActivityFormUpdate from './ActivityFormUpdate';
 
-const Activity = require('../../models/activity')
+function ActivityFormRead() {
+  const [show, setShow] = useState(false);
+  const [current, setcurrent] = useState("");
 
-const Auth = require('../../middleware/authentication')
-const db = require('../../db')
-
-
-
-const multer = require('multer');
-
-const storage = multer.diskStorage({
-    destination: function(req,file,cb) {
-        cb(null, 'uploads')
-        // cb(null, './uploads/');
-    },
-    filename: function(req,file, cb){
-        // cb(null, file.fieldname + '-' + Date.now())
-        cb(null, Date.now() + file.originalname);
-  
-    }
-})
-
-
-
-
-
-const upload = multer({storage: storage});
-
-db.main();
-const routes = express.Router()
-routes.use('/uploads', express.static('uploads'));
-routes.use(bodyParser.urlencoded({extended: false}));
-routes.use(bodyParser.json());
-
-
-routes.get('/member/exercise_activity', Auth, async (req, res) => {
-    try {
-        const activity = await Activity.find({});
-
-        if (!activity) {
-            return res.status(400).json({ msg: 'Activity not found' });
-        }
-
-        res.json(activity);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-});
-
-routes.post("/member/exercise_activity",upload.single('exe_ac_img'), Auth, async(req,res)=>{
+  const handleClose = () => setShow(false);
+  const handleShow = () =>{
+    setShow(true);
+  } 
     
+
+
+  const [activity, setactivity] = useState([
    
-    try{
-    const Result = await Activity.create({
-            memberID: req.Another.id,
-            exe_ac_name:req.body.exe_ac_name,
-            exe_ac_desc:req.body.exe_ac_desc,
-            exe_ac_type:req.body.exe_ac_type,
-            exe_ac_dur:req.body.exe_ac_dur,
-            exe_ac_date:req.body.exe_ac_date,
-            exe_ac_img:req.file.path
+
+  ]);
+
+
+  
+// console.log(activity)
+React.useEffect(() => {
+
+  
+  async function getData() {
+    const res = await fetch('http://localhost:8000/api/activity/member/exercise_activity',{
+    method: "GET",
+
+    headers:{
+      "Content-Type": "application/json",
+      'Tokenization': localStorage.getItem('Token')
+    },
+  });
+
+
+  const data = await res.json();
+  // console.log(res)
+  setactivity(data)
+
+  }
+  
+  getData()
+
+
+}, [])
+
+
+
+
+  return (
+
+        <Table striped bordered hover variant="dark">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Exercise Activity Name</th>
+            <th>Exercise Activity Description</th>
+            <th>Exercise Activity Type</th>
+            <th>Exercise Activity Duration</th>
+            <th>Exercise Activity Date</th>
+            <th>Exercise Activity Image</th>
+        <th></th>
+           </tr>
+      
+        </thead>
+        <tbody>
+            {
+              
+              activity.map(item => (
+              <tr>
+                
+                <td>{item._id.toString()}</td>
+                <td>{item.exe_ac_name}</td>
+                <td>{item.exe_ac_desc}</td>
+                <td>{item.exe_ac_type}</td>
+                <td>{item.exe_ac_dur}</td>
+                <td>{item.exe_ac_date}</td>
+                <td>{item.exe_ac_img}</td>
+                <td> 
+                <Button variant="primary" onClick={()=>{setcurrent(item._id); handleShow();}}>
+        Launch demo modal
+      </Button>
+      
+      <Modal show={show} onHide={handleClose}>
+        <Modal.Header closeButton>
+          <Modal.Title>Modal heading</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>Woohoo, you're reading this text in a modal!</Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleClose}>
+            Close
+          </Button>
           
+          <Button variant="secondary" onClick={async ()=>{
+            try{
+              console.log(current)
+              const result = await fetch("http://localhost:8000/api/activity/member/exercise_activity/delete/"+current,{
+                method:"DELETE",
+                headers:{
+                  'Tokenization': localStorage.getItem('Token')
+                }
+              })
+              let data = await result.json()
+              console.log(data)
+              
+              const res = await fetch('http://localhost:8000/api/activity/member/exercise_activity',{
+                method: "GET",
+            
+                headers:{
+                  "Content-Type": "application/json",
+                  'Tokenization': localStorage.getItem('Token')
+                },
+              });
+            
+            
+              data = await res.json();
+              // console.log(res)
 
-         
+              setactivity(data)
+              
+              handleClose()
+              
+
+            }
+            catch(err){
+              console.log(err)
+            }
+
+          }}>
+          Delete 
+          </Button>
+
+          <Button variant="secondary" onClick={setactivity}>
+            Show 
+          </Button>
           
+            <Button onClick={() => setactivity(data)}>Update</Button>
+        </Modal.Footer>
+      </Modal>    
 
-        
 
-    })
-                const ch = await Result.save();
-                 return res.send(ch);
 
+
+
+
+
+
+                {/* <Button className='actvty-btn' value="ActivityFormEdit" variant="primary" type="submit">
+             Update Activity
+           </Button> */}
+                </td>
+
+              </tr>
+              ))
+            }
          
-            } catch(e){
-                res.status(400).send(e.message)
-            }
-        }) 
+         
+         
+    
+        </tbody>
+      </Table>
+         
+
+  )
+}
+      
 
 
-        routes.post("/member/exercise_activities/display", Auth, async(req,res)=>{
-         const displayed_activities = await Activity.find({_id:req.body.memberID}).populate('memberID');
-
-         res.send(displayed_activities);
-            
-        })
-
-        routes.delete("/member/exercise_activity/delete/:id", Auth, async(req,res)=>{
-            try {
-                const id = req.params.id;
-                await Activity.deleteOne({_id:id});
-                res.status(200).send({success:true,msg:"Activity deleted"});
-                res.json({ msg: 'Activity removed' });
-            } catch (err) {
-                console.error(err.message);
-                res.status(400).send('Not Deleted, try again');
-            }
-        
-        })
-
-
-        routes.put("/member/edit_exercise_activity/:id", Auth, async(req,res)=>{
-
-            try {
-                const id = req.params.id;
-                const updates = req.body;
-                const options = {new: true};
-                 
-                const result = await Activity.findByIdAndUpdate(id,updates,options);
-            
-                res.send(result);   
-                console.log(result);
-            
-            } catch (error) {
-                console.log(error.message);
-            }
-            });
-           
-  module.exports = routes
+export default ActivityFormRead;
